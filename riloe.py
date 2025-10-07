@@ -5,12 +5,56 @@ import re
 import shutil
 import requests
 import hashlib
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 from PIL import Image
 import markdown
 from ebooklib import epub
+
+
+def convert_epub_to_mobi(epub_path, output_folder):
+    mobi_filename = epub_path.stem + ".mobi"
+    mobi_path = output_folder / mobi_filename
+
+    try:
+        cmd = [
+            "ebook-convert",
+            str(epub_path),
+            str(mobi_path),
+            "--output-profile=kindle",
+            "--mobi-file-type=old",  # Para compatibilidade con Kindle 5
+            "--no-inline-toc",
+            "--linearize-tables"
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+
+        if result.returncode == 0:
+            return mobi_path
+
+    except Exception as e:
+        print(f"Erro ao converter EPUB a MOBI: {e}")
+        return None
+
+
+def copy_to_kindle(file_path, kindle_path):
+    if not os.path.exists(kindle_path):
+        print(f"Erro: A ruta do Kindle '{kindle_path}' non existe.")
+        return False
+
+    documents_path = os.path.join(kindle_path, "documents")
+    if not os.path.exists(documents_path):
+        print(f"Erro: '{kindle_path}' non parece ser unha ruta válida do Kindle.")
+        return False
+
+    try:
+        destination = os.path.join(documents_path, os.path.basename(file_path))
+        shutil.copy2(str(file_path), destination)
+        return True
+    except Exception as e:
+        print(f"Erro: Non se puido copiar o arquivo ao Kindle: {e}")
+        return False
 
 
 def download_image(url, images_folder):
@@ -211,6 +255,12 @@ def main():
         help="Número de ficheiros a incluír no EPUB (por defecto: 10)"
     )
 
+    parser.add_argument(
+        "--kindle",
+        metavar='RUTA_AO_KINDLE',
+        help="Converte o EPUB a MOBI e cópiao ao Kindle na ruta especificada"
+    )
+
     args = parser.parse_args()
 
     if not os.path.exists(args.ruta):
@@ -237,10 +287,16 @@ def main():
             shutil.move(str(file), str(filepath))
             moved_files.append((filepath, date, frontmatter, body))
         except Exception as e:
-            print(f"Erro ao mover {file}: {e}")
+            print(f"Erro: Erro ao mover {file}: {e}")
 
     try:
         epub_path = create_epub(moved_files, epub_folder)
+
+        if args.kindle:
+            mobi_path = convert_epub_to_mobi(epub_path, epub_folder)
+            if mobi_path:
+                success = copy_to_kindle(mobi_path, args.kindle)
+
     except Exception as e:
         print(f"Erro ao crear o EPUB: {e}")
         sys.exit(1)

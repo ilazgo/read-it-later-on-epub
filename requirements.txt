@@ -2,3 +2,4 @@ ebooklib==0.18
 markdown==3.6
 requests==2.31.0
 Pillow==10.4.0
+subprocess32==3.5.4
