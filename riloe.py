@@ -20,7 +20,7 @@ def convert_epub_to_mobi(epub_path, output_folder):
 
     try:
         cmd = [
-            "ebook-convert",
+            "flatpak --command='ebook-convert' run com.calibre_ebook.calibre",
             str(epub_path),
             str(mobi_path),
             "--output-profile=kindle",
